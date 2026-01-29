@@ -1,12 +1,60 @@
 /**
- * Todo Repository (MySQL Version)
+ * Todo Repository (Memory + File Backup)
  *
  * What: Todo 데이터 접근 계층
  * Why: 데이터 저장소를 추상화하여 비즈니스 로직과 분리
- * How: mysql2/promise를 사용한 CRUD 연산 구현
+ * How: 메모리 배열에 CRUD 연산 구현, 파일로 백업 지원
  */
 
-const { pool } = require('../config/database');
+const fs = require('fs').promises;
+const path = require('path');
+
+// 데이터 파일 경로
+const DATA_FILE = path.join(__dirname, '../data/todos.json');
+
+// 메모리 저장소
+let todos = [];
+
+/**
+ * 파일에서 데이터 로드 (서버 시작 시)
+ *
+ * @returns {Promise<void>}
+ */
+async function load() {
+  try {
+    const data = await fs.readFile(DATA_FILE, 'utf8');
+    todos = JSON.parse(data);
+    console.log(`  Loaded ${todos.length} todos from file`);
+  } catch (error) {
+    // 파일이 없으면 빈 배열로 시작
+    if (error.code === 'ENOENT') {
+      todos = [];
+      console.log('  No existing data file, starting fresh');
+    } else {
+      console.error('  Error loading data:', error.message);
+      todos = [];
+    }
+  }
+}
+
+/**
+ * 데이터를 파일로 백업
+ *
+ * @returns {Promise<void>}
+ */
+async function backup() {
+  try {
+    // data 디렉토리가 없으면 생성
+    const dataDir = path.dirname(DATA_FILE);
+    await fs.mkdir(dataDir, { recursive: true });
+
+    await fs.writeFile(DATA_FILE, JSON.stringify(todos, null, 2), 'utf8');
+    console.log(`  Backed up ${todos.length} todos to file`);
+  } catch (error) {
+    console.error('  Error backing up data:', error.message);
+    throw error;
+  }
+}
 
 /**
  * 새로운 Todo 저장
@@ -15,21 +63,7 @@ const { pool } = require('../config/database');
  * @returns {Promise<Object>} 저장된 Todo 객체
  */
 async function save(todo) {
-  const sql = `
-    INSERT INTO todos (id, title, description, completed, createdAt, updatedAt)
-    VALUES (?, ?, ?, ?, ?, ?)
-  `;
-
-  const values = [
-    todo.id,
-    todo.title,
-    todo.description,
-    todo.completed,
-    todo.createdAt,
-    todo.updatedAt
-  ];
-
-  await pool.execute(sql, values);
+  todos.push(todo);
   return todo;
 }
 
@@ -40,21 +74,9 @@ async function save(todo) {
  * @returns {Promise<Array>} Todo 배열
  */
 async function findAll() {
-  const sql = `
-    SELECT id, title, description, completed, createdAt, updatedAt
-    FROM todos
-    ORDER BY createdAt DESC
-  `;
-
-  const [rows] = await pool.execute(sql);
-
-  // MySQL boolean을 JavaScript boolean으로 변환
-  return rows.map(row => ({
-    ...row,
-    completed: Boolean(row.completed),
-    createdAt: row.createdAt instanceof Date ? row.createdAt.toISOString() : row.createdAt,
-    updatedAt: row.updatedAt instanceof Date ? row.updatedAt.toISOString() : row.updatedAt
-  }));
+  return [...todos].sort((a, b) =>
+    new Date(b.createdAt) - new Date(a.createdAt)
+  );
 }
 
 /**
@@ -64,25 +86,7 @@ async function findAll() {
  * @returns {Promise<Object|null>} Todo 객체 또는 null
  */
 async function findById(id) {
-  const sql = `
-    SELECT id, title, description, completed, createdAt, updatedAt
-    FROM todos
-    WHERE id = ?
-  `;
-
-  const [rows] = await pool.execute(sql, [id]);
-
-  if (rows.length === 0) {
-    return null;
-  }
-
-  const row = rows[0];
-  return {
-    ...row,
-    completed: Boolean(row.completed),
-    createdAt: row.createdAt instanceof Date ? row.createdAt.toISOString() : row.createdAt,
-    updatedAt: row.updatedAt instanceof Date ? row.updatedAt.toISOString() : row.updatedAt
-  };
+  return todos.find(todo => todo.id === id) || null;
 }
 
 /**
@@ -93,27 +97,14 @@ async function findById(id) {
  * @returns {Promise<Object|null>} 업데이트된 Todo 또는 null
  */
 async function update(id, updatedTodo) {
-  const sql = `
-    UPDATE todos
-    SET title = ?, description = ?, completed = ?, updatedAt = ?
-    WHERE id = ?
-  `;
+  const index = todos.findIndex(todo => todo.id === id);
 
-  const values = [
-    updatedTodo.title,
-    updatedTodo.description,
-    updatedTodo.completed,
-    updatedTodo.updatedAt,
-    id
-  ];
-
-  const [result] = await pool.execute(sql, values);
-
-  if (result.affectedRows === 0) {
+  if (index === -1) {
     return null;
   }
 
-  return updatedTodo;
+  todos[index] = updatedTodo;
+  return todos[index];
 }
 
 /**
@@ -123,17 +114,14 @@ async function update(id, updatedTodo) {
  * @returns {Promise<Object|null>} 삭제된 Todo 또는 null
  */
 async function remove(id) {
-  // 먼저 삭제할 Todo를 조회
-  const todo = await findById(id);
+  const index = todos.findIndex(todo => todo.id === id);
 
-  if (!todo) {
+  if (index === -1) {
     return null;
   }
 
-  const sql = `DELETE FROM todos WHERE id = ?`;
-  await pool.execute(sql, [id]);
-
-  return todo;
+  const [removed] = todos.splice(index, 1);
+  return removed;
 }
 
 /**
@@ -142,9 +130,7 @@ async function remove(id) {
  * @returns {Promise<number>} Todo 개수
  */
 async function count() {
-  const sql = `SELECT COUNT(*) as count FROM todos`;
-  const [rows] = await pool.execute(sql);
-  return rows[0].count;
+  return todos.length;
 }
 
 /**
@@ -153,11 +139,12 @@ async function count() {
  * @returns {Promise<void>}
  */
 async function clear() {
-  const sql = `DELETE FROM todos`;
-  await pool.execute(sql);
+  todos = [];
 }
 
 module.exports = {
+  load,
+  backup,
   save,
   findAll,
   findById,

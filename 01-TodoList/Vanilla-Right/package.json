@@ -1,20 +1,16 @@
 {
   "name": "todolist-vanilla",
   "version": "1.0.0",
-  "description": "TodoList API - Pure Node.js Implementation with MySQL",
+  "description": "TodoList API - Pure Node.js Implementation",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js"
   },
-  "keywords": ["todo", "api", "nodejs", "vanilla", "mysql"],
+  "keywords": ["todo", "api", "nodejs", "vanilla"],
   "author": "",
   "license": "MIT",
   "engines": {
     "node": ">=18.0.0"
-  },
-  "dependencies": {
-    "dotenv": "^16.3.1",
-    "mysql2": "^3.6.5"
   }
 }

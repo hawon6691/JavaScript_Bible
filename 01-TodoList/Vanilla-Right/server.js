@@ -3,19 +3,16 @@
  *
  * What: HTTP 서버 생성 및 실행
  * Why: API 요청을 수신하고 처리하기 위한 진입점
- * How: Node.js 내장 http 모듈로 서버 생성, MySQL 데이터베이스 연결
+ * How: Node.js 내장 http 모듈로 서버 생성, 메모리 저장소 + 파일 백업
  *
  * @author JavaScript Bible Project
  * @version 1.0.0
  */
 
-// 환경변수 로드 (가장 먼저 실행)
-require('dotenv').config();
-
 const http = require('http');
 const router = require('./routes/todoRoutes');
 const config = require('./config/config');
-const { initialize: initializeDatabase } = require('./config/database');
+const todoRepository = require('./repositories/todoRepository');
 
 // HTTP 서버 생성
 const server = http.createServer(router);
@@ -23,19 +20,14 @@ const server = http.createServer(router);
 // 서버 시작 함수
 async function startServer() {
   console.log('='.repeat(50));
-  console.log('  TodoList API Server');
+  console.log('  TodoList API Server (Vanilla)');
   console.log('='.repeat(50));
   console.log(`  Environment: ${config.env}`);
 
-  // 데이터베이스 초기화
+  // 저장된 데이터 로드
   console.log('');
-  console.log('Initializing database...');
-  const dbConnected = await initializeDatabase();
-
-  if (!dbConnected) {
-    console.error('Failed to connect to database. Exiting...');
-    process.exit(1);
-  }
+  console.log('Loading data...');
+  await todoRepository.load();
 
   // 서버 시작
   server.listen(config.server.port, config.server.host, () => {
@@ -67,22 +59,40 @@ server.on('error', (error) => {
   process.exit(1);
 });
 
-// Graceful shutdown
-process.on('SIGTERM', () => {
-  console.log('\nReceived SIGTERM, shutting down gracefully...');
-  server.close(() => {
-    console.log('Server closed');
-    process.exit(0);
-  });
-});
+/**
+ * Graceful Shutdown 처리
+ * 서버 종료 시 데이터를 파일로 백업
+ *
+ * @param {string} signal - 수신된 시그널
+ */
+async function gracefulShutdown(signal) {
+  console.log(`\nReceived ${signal}, shutting down gracefully...`);
 
-process.on('SIGINT', () => {
-  console.log('\nReceived SIGINT, shutting down gracefully...');
-  server.close(() => {
+  // 타임아웃 설정
+  const shutdownTimeout = setTimeout(() => {
+    console.error('Forced shutdown after timeout');
+    process.exit(1);
+  }, config.shutdown.timeout);
+
+  server.close(async () => {
     console.log('Server closed');
+
+    // 데이터 백업
+    try {
+      await todoRepository.backup();
+      console.log('Data backup completed');
+    } catch (error) {
+      console.error('Data backup failed:', error.message);
+    }
+
+    clearTimeout(shutdownTimeout);
     process.exit(0);
   });
-});
+}
+
+// Graceful shutdown 이벤트 핸들러
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
 // 처리되지 않은 예외 처리
 process.on('uncaughtException', (error) => {
@@ -92,6 +102,7 @@ process.on('uncaughtException', (error) => {
 
 process.on('unhandledRejection', (reason, promise) => {
   console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+  process.exit(1);
 });
 
 // 서버 시작

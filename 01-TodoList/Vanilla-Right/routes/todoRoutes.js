@@ -3,7 +3,7 @@
  *
  * What: URL 패턴과 HTTP 메서드를 Controller에 매핑
  * Why: 요청 라우팅 로직을 분리하여 관리 용이
- * How: URL 패턴 매칭으로 적절한 핸들러 호출
+ * How: URL 패턴 매칭으로 적절한 핸들러 호출, UUID 검증 포함
  */
 
 const todoController = require('../controllers/todoController');
@@ -11,29 +11,48 @@ const response = require('../utils/response');
 const { parseJson } = require('../middlewares/jsonParser');
 const { logRequest, logResponse } = require('../middlewares/logger');
 const { handleError } = require('../middlewares/errorHandler');
+const { isValidUUID } = require('../utils/validator');
+const config = require('../config/config');
 
 /**
- * URL에서 Todo ID 추출
+ * URL에서 Todo ID 추출 및 UUID 검증
  * /todos/550e8400-e29b-41d4-a716-446655440000 -> 550e8400-e29b-41d4-a716-446655440000
  *
  * @param {string} url - 요청 URL
- * @returns {string|null} 추출된 ID 또는 null
+ * @returns {string|null} 유효한 UUID인 경우 ID, 아니면 null
  */
 function extractTodoId(url) {
   const match = url.match(/^\/todos\/([^\/]+)$/);
-  return match ? match[1] : null;
+  if (!match) return null;
+
+  const id = match[1];
+  return isValidUUID(id) ? id : null;
 }
 
 /**
- * Toggle 엔드포인트 URL 확인
+ * Toggle 엔드포인트 URL 확인 및 UUID 검증
  * /todos/:id/toggle 패턴 매칭
  *
  * @param {string} url - 요청 URL
- * @returns {{id: string}|null} ID 객체 또는 null
+ * @returns {{id: string}|null} 유효한 UUID인 경우 ID 객체, 아니면 null
  */
 function extractToggleId(url) {
   const match = url.match(/^\/todos\/([^\/]+)\/toggle$/);
-  return match ? { id: match[1] } : null;
+  if (!match) return null;
+
+  const id = match[1];
+  return isValidUUID(id) ? { id } : null;
+}
+
+/**
+ * CORS 헤더 설정
+ *
+ * @param {Object} res - HTTP Response 객체
+ */
+function setCorsHeaders(res) {
+  res.setHeader('Access-Control-Allow-Origin', config.cors.origin);
+  res.setHeader('Access-Control-Allow-Methods', config.cors.methods);
+  res.setHeader('Access-Control-Allow-Headers', config.cors.headers);
 }
 
 /**
@@ -59,9 +78,9 @@ async function router(req, res) {
     // CORS 프리플라이트 요청 처리
     if (method === 'OPTIONS') {
       res.writeHead(204, {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type'
+        'Access-Control-Allow-Origin': config.cors.origin,
+        'Access-Control-Allow-Methods': config.cors.methods,
+        'Access-Control-Allow-Headers': config.cors.headers
       });
       res.end();
       logResponse(req, 204, startTime);
@@ -69,7 +88,7 @@ async function router(req, res) {
     }
 
     // CORS 헤더 설정
-    res.setHeader('Access-Control-Allow-Origin', '*');
+    setCorsHeaders(res);
 
     // 라우팅
     // POST /todos - Todo 생성
@@ -131,6 +150,20 @@ async function router(req, res) {
       // 해당 ID에 대해 허용되지 않은 메서드
       response.methodNotAllowed(res, `Method ${method} not allowed for /todos/:id`);
       logResponse(req, 405, startTime);
+      return;
+    }
+
+    // /todos/:id 형식이지만 유효하지 않은 UUID
+    if (url.match(/^\/todos\/[^\/]+$/)) {
+      response.badRequest(res, 'Invalid todo ID format');
+      logResponse(req, 400, startTime);
+      return;
+    }
+
+    // /todos/:id/toggle 형식이지만 유효하지 않은 UUID
+    if (url.match(/^\/todos\/[^\/]+\/toggle$/)) {
+      response.badRequest(res, 'Invalid todo ID format');
+      logResponse(req, 400, startTime);
       return;
     }
 
