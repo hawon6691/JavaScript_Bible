@@ -1,8 +1,14 @@
-# Architecture (아키텍처 설계)
+# Vanilla Node.js Architecture (아키텍처 설계)
 
 ## 🏗️ 아키텍처 개요
 
-TodoList API의 전체 구조와 설계 원칙을 정의합니다.
+**Vanilla Node.js** 버전 TodoList API의 전체 구조와 설계 원칙을 정의합니다.
+
+### 핵심 특징
+- **외부 라이브러리 없음**: 순수 Node.js 내장 모듈만 사용
+- **HTTP 서버 직접 구현**: `http.createServer()` 사용
+- **수동 라우팅**: if-else 기반 URL 패턴 매칭
+- **미들웨어 직접 구현**: JSON 파싱, 로깅, 에러 처리 등
 
 ---
 
@@ -59,10 +65,10 @@ TodoList API의 전체 구조와 설계 원칙을 정의합니다.
 
 ---
 
-## 📁 디렉토리 구조 (Vanilla-Right)
+## 📁 디렉토리 구조
 
 ```
-Vanilla-Right/
+Vanilla/
 ├── server.js                 # 서버 진입점
 ├── config/
 │   └── config.js            # 설정 관리

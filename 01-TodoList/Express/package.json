@@ -1,0 +1,21 @@
+{
+  "name": "todolist-express",
+  "version": "1.0.0",
+  "description": "TodoList API - Express Implementation",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "keywords": ["todo", "api", "nodejs", "express"],
+  "author": "",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "mysql2": "^3.6.5"
+  }
+}
