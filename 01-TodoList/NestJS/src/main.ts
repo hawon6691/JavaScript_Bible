@@ -15,6 +15,9 @@ import { ValidationPipe, BadRequestException } from '@nestjs/common';
 import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 
+/**
+ * Bootstraps and starts the NestJS application: creates the app, enables CORS, configures global validation and global HTTP exception handling, starts the HTTP server, and logs startup information.
+ */
 async function bootstrap() {
   // NestJS 애플리케이션 생성
   const app = await NestFactory.create(AppModule);
