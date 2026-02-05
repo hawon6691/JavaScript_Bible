@@ -26,6 +26,7 @@ import {
   HttpCode,
   HttpStatus,
   ValidationPipe,
+  ParseUUIDPipe,
 } from '@nestjs/common';
 import { TodosService } from './todos.service';
 import { CreateTodoDto } from './dto/create-todo.dto';
@@ -80,13 +81,14 @@ export class TodosController {
    * GET /todos/:id
    * 특정 Todo를 조회합니다.
    *
-   * @param id - Todo ID
+   * @param id - Todo ID (UUID v4)
    * @returns 200 OK - Todo
+   * @throws 400 Bad Request - 잘못된 UUID 형식
    * @throws 404 Not Found - Todo를 찾을 수 없는 경우
    */
   @Get(':id')
   @HttpCode(HttpStatus.OK)
-  findOne(@Param('id') id: string) {
+  findOne(@Param('id', ParseUUIDPipe) id: string) {
     const todo = this.todosService.findOne(id);
 
     return {
@@ -100,16 +102,16 @@ export class TodosController {
    * PUT /todos/:id
    * Todo를 전체 수정합니다 (모든 필드 필수).
    *
-   * @param id - Todo ID
+   * @param id - Todo ID (UUID v4)
    * @param updateTodoDto - 수정할 Todo 정보 (모든 필드)
    * @returns 200 OK - 수정된 Todo
+   * @throws 400 Bad Request - 잘못된 UUID 형식 또는 필수 필드 누락 시
    * @throws 404 Not Found - Todo를 찾을 수 없는 경우
-   * @throws 400 Bad Request - 필수 필드 누락 시
    */
   @Put(':id')
   @HttpCode(HttpStatus.OK)
   update(
-    @Param('id') id: string,
+    @Param('id', ParseUUIDPipe) id: string,
     @Body(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }))
     updateTodoDto: UpdateTodoDto,
   ) {
@@ -126,15 +128,16 @@ export class TodosController {
    * PATCH /todos/:id
    * Todo를 부분 수정합니다 (제공된 필드만 수정).
    *
-   * @param id - Todo ID
+   * @param id - Todo ID (UUID v4)
    * @param updateTodoDto - 수정할 필드들
    * @returns 200 OK - 수정된 Todo
+   * @throws 400 Bad Request - 잘못된 UUID 형식
    * @throws 404 Not Found - Todo를 찾을 수 없는 경우
    */
   @Patch(':id')
   @HttpCode(HttpStatus.OK)
   patch(
-    @Param('id') id: string,
+    @Param('id', ParseUUIDPipe) id: string,
     @Body(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }))
     updateTodoDto: UpdateTodoDto,
   ) {
@@ -151,13 +154,14 @@ export class TodosController {
    * DELETE /todos/:id
    * Todo를 삭제합니다.
    *
-   * @param id - Todo ID
+   * @param id - Todo ID (UUID v4)
    * @returns 200 OK - 삭제된 Todo
+   * @throws 400 Bad Request - 잘못된 UUID 형식
    * @throws 404 Not Found - Todo를 찾을 수 없는 경우
    */
   @Delete(':id')
   @HttpCode(HttpStatus.OK)
-  remove(@Param('id') id: string) {
+  remove(@Param('id', ParseUUIDPipe) id: string) {
     const todo = this.todosService.remove(id);
 
     return {
@@ -171,13 +175,14 @@ export class TodosController {
    * PATCH /todos/:id/toggle
    * Todo의 완료 상태를 토글합니다.
    *
-   * @param id - Todo ID
+   * @param id - Todo ID (UUID v4)
    * @returns 200 OK - 토글된 Todo
+   * @throws 400 Bad Request - 잘못된 UUID 형식
    * @throws 404 Not Found - Todo를 찾을 수 없는 경우
    */
   @Patch(':id/toggle')
   @HttpCode(HttpStatus.OK)
-  toggle(@Param('id') id: string) {
+  toggle(@Param('id', ParseUUIDPipe) id: string) {
     const todo = this.todosService.toggle(id);
 
     return {

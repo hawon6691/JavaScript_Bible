@@ -19,7 +19,7 @@ export class Todo {
   /**
    * 할 일 상세 설명 (최대 500자, 선택 사항)
    */
-  description: string;
+  description?: string;
 
   /**
    * 완료 여부
@@ -37,6 +37,11 @@ export class Todo {
   updatedAt: string;
 
   constructor(partial: Partial<Todo>) {
+    // 기본값 설정
+    this.description = '';
+    this.completed = false;
+
+    // 전달받은 값으로 덮어쓰기
     Object.assign(this, partial);
   }
 }

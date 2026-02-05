@@ -22,17 +22,27 @@ import {
   ArgumentsHost,
   HttpException,
   HttpStatus,
+  Logger,
 } from '@nestjs/common';
 import { Request, Response } from 'express';
 
-@Catch(HttpException)
+@Catch()
 export class HttpExceptionFilter implements ExceptionFilter {
-  catch(exception: HttpException, host: ArgumentsHost) {
+  private readonly logger = new Logger(HttpExceptionFilter.name);
+
+  catch(exception: unknown, host: ArgumentsHost) {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
     const request = ctx.getRequest<Request>();
-    const status = exception.getStatus();
-    const exceptionResponse = exception.getResponse();
+
+    // HttpException 여부 확인
+    const isHttpException = exception instanceof HttpException;
+    const status = isHttpException
+      ? exception.getStatus()
+      : HttpStatus.INTERNAL_SERVER_ERROR;
+    const exceptionResponse = isHttpException
+      ? exception.getResponse()
+      : { message: 'Internal server error' };
 
     // NestJS의 기본 에러 응답 구조
     const errorResponse =
@@ -61,8 +71,11 @@ export class HttpExceptionFilter implements ExceptionFilter {
       path: request.url,
     };
 
-    // 에러 로깅 (프로덕션에서는 로거 사용)
-    console.error(`[${errorCode}] ${errorMessage} - ${request.method} ${request.url}`);
+    // 에러 로깅
+    this.logger.error(
+      `[${errorCode}] ${errorMessage} - ${request.method} ${request.url}`,
+      isHttpException ? undefined : (exception as Error).stack,
+    );
 
     response.status(status).json(responseBody);
   }

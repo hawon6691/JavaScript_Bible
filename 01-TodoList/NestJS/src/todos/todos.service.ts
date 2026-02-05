@@ -57,12 +57,12 @@ export class TodosService {
   create(createTodoDto: CreateTodoDto): Todo {
     const { title, description = '' } = createTodoDto;
 
-    // 추가 검증: title이 공백만으로 이루어져 있는지 확인
-    if (title.trim().length === 0) {
+    // 추가 검증: title이 빈 문자열인지 확인 (DTO에서 이미 trim됨)
+    if (title.length === 0) {
       throw new BadRequestException('Title cannot be empty');
     }
 
-    return this.todosRepository.create(title.trim(), description.trim());
+    return this.todosRepository.create(title, description);
   }
 
   /**
@@ -83,14 +83,14 @@ export class TodosService {
       );
     }
 
-    // title이 공백만으로 이루어져 있는지 확인
-    if (title.trim().length === 0) {
+    // title이 빈 문자열인지 확인 (DTO에서 이미 trim됨)
+    if (title.length === 0) {
       throw new BadRequestException('Title cannot be empty');
     }
 
     const updatedTodo = this.todosRepository.update(id, {
-      title: title.trim(),
-      description: description.trim(),
+      title,
+      description,
       completed,
     });
 
@@ -115,14 +115,15 @@ export class TodosService {
       {};
 
     if (updateTodoDto.title !== undefined) {
-      if (updateTodoDto.title.trim().length === 0) {
+      // title이 빈 문자열인지 확인 (DTO에서 이미 trim됨)
+      if (updateTodoDto.title.length === 0) {
         throw new BadRequestException('Title cannot be empty');
       }
-      updates.title = updateTodoDto.title.trim();
+      updates.title = updateTodoDto.title;
     }
 
     if (updateTodoDto.description !== undefined) {
-      updates.description = updateTodoDto.description.trim();
+      updates.description = updateTodoDto.description;
     }
 
     if (updateTodoDto.completed !== undefined) {

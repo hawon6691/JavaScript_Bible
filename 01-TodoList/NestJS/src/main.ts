@@ -30,17 +30,25 @@ async function bootstrap() {
       forbidNonWhitelisted: true, // DTO에 없는 속성이 있으면 에러
       transform: true, // 타입 자동 변환
       exceptionFactory: (errors) => {
-        // 검증 에러 메시지 포맷팅
-        const messages = errors.map((error) => ({
-          field: error.property,
-          errors: Object.values(error.constraints || {}),
-        }));
+        // 검증 에러 메시지 포맷팅 (nested DTO 지원)
+        const flatten = (errs, parent = '') =>
+          errs.flatMap((error) => {
+            const path = parent ? `${parent}.${error.property}` : error.property;
+            const own = Object.values(error.constraints || {}).map((msg) => ({
+              field: path,
+              errors: [msg],
+            }));
+            const children = error.children?.length ? flatten(error.children, path) : [];
+            return [...own, ...children];
+          });
+
+        const messages = flatten(errors);
 
         return new BadRequestException({
           success: false,
           error: {
             code: 'VALIDATION_ERROR',
-            message: messages[0]?.errors[0] || 'Validation failed',
+            message: messages[0]?.errors?.[0] || 'Validation failed',
             details: messages,
           },
         });

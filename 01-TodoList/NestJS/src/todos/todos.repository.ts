@@ -25,8 +25,8 @@ export class TodosRepository {
    * @returns 생성 시간 기준 최신순으로 정렬된 Todo 배열
    */
   findAll(): Todo[] {
-    // createdAt 기준 최신순 정렬
-    return this.todos.sort((a, b) => {
+    // createdAt 기준 최신순 정렬 (원본 배열을 변경하지 않도록 복사본 정렬)
+    return [...this.todos].sort((a, b) => {
       return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
     });
   }
