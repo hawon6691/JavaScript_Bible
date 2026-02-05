@@ -46,13 +46,16 @@ export class HttpExceptionFilter implements ExceptionFilter {
     // 에러 메시지 추출
     const errorMessage = this.getErrorMessage(errorResponse);
 
+    // validation details 추출 (error.details 또는 details)
+    const details = errorResponse.error?.details || errorResponse.details;
+
     // API 명세에 맞는 응답 형식
     const responseBody = {
       success: false,
       error: {
         code: errorCode,
         message: errorMessage,
-        ...(errorResponse.details && { details: errorResponse.details }),
+        ...(details && { details }),
       },
       timestamp: new Date().toISOString(),
       path: request.url,
